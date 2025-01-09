@@ -10,6 +10,18 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 
+def get_chromium_driver():
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.binary_location = "/usr/bin/chromium-browser"  # Utilizează Chromium instalat implicit
+
+    driver = webdriver.Chrome(
+        service=Service(ChromeDriverManager().install()), options=chrome_options
+    )
+    return driver
+
 def search_and_visit_links(url, search_text):
     # Convertim textul de căutare în cuvinte individuale
     keywords = search_text.lower().split()
@@ -19,7 +31,8 @@ def search_and_visit_links(url, search_text):
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
 
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+    # Exemplu de utilizare
+    driver = get_chromium_driver()
     
     results = []  # Pentru stocarea rezultatelor
     links_data = []  # Vom salva aici linkurile pentru a le exporta în Excel

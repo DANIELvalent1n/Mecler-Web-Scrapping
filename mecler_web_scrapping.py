@@ -8,10 +8,13 @@ from openpyxl import load_workbook
 from openpyxl.styles import Alignment 
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
+import chromedriver_autoinstaller
 
 def search_and_visit_links(url, search_text):
     # Convertim textul de căutare în cuvinte individuale
     keywords = search_text.lower().split()
+
+    chromedriver_autoinstaller.install()
 
     chrome_options = Options()
     chrome_options.add_argument("--headless")  # Rulare fără interfață grafică

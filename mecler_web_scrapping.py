@@ -6,13 +6,20 @@ import time
 import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment 
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
 
 def search_and_visit_links(url, search_text):
     # Convertim textul de căutare în cuvinte individuale
     keywords = search_text.lower().split()
 
-    # Configurarea driver-ului Selenium
-    driver = webdriver.Chrome()  # Asigură-te că ai instalat ChromeDriver
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")  # Rulare fără interfață grafică
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
     
     results = []  # Pentru stocarea rezultatelor
     links_data = []  # Vom salva aici linkurile pentru a le exporta în Excel

@@ -1,6 +1,6 @@
 import streamlit as st
 import os, sys
-@st.experimental_singleton
+@st.singleton
 def installff():
     os.system('apt-get update')
     os.system('apt-get install -y geckodriver')

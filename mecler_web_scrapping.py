@@ -27,7 +27,7 @@ def search_and_visit_links(url, search_text):
     firefox_options.add_argument('--log-level=3')
 
     # Specificăm locația geckodriver-ului (opțional, dacă nu este în PATH)
-    gecko_service = Service(executable_path="geckodriver")  # Asigură-te că `geckodriver` este în PATH
+    gecko_service = Service(executable_path="./geckodriver")  # Asigură-te că `geckodriver` este în PATH
 
     # Exemplu de utilizare
     driver = webdriver.Firefox(service=gecko_service, options=firefox_options)

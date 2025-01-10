@@ -2,18 +2,23 @@ import streamlit as st
 
 import subprocess
 
-def get_chrome_version():
+def get_chrome_package_info():
     try:
-        result = subprocess.run(['google-chrome', '--version'], capture_output=True, text=True)
+        result = subprocess.run(
+            ['powershell', '-Command', 'Get-Package -Name "Google Chrome"'],
+            capture_output=True,
+            text=True
+        )
         if result.returncode == 0:
             return result.stdout.strip()
         else:
-            return "Google Chrome nu este instalat sau nu este accesibil."
+            return "Google Chrome package not found."
     except Exception as e:
         return str(e)
 
-chrome_version = get_chrome_version()
-st.write(f"Versiunea Chrome: {chrome_version}")
+chrome_info = get_chrome_package_info()
+st.write(f"Chrome package info: {chrome_info}")
+
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By

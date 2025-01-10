@@ -1,0 +1,4 @@
+# Only use LF line endings of our bash scripts and txt files
+*.sh -lf
+*.txt -lf
+.env -lf

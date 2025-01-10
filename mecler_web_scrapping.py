@@ -2,135 +2,166 @@ import streamlit as st
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+import os
+import re
 import time
+import shutil
+import subprocess
+from typing import List, Tuple
 import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment 
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.core.os_manager import ChromeType
 
-chrome_options = Options()
-chrome_options.add_argument("--headless")  # Rulare fără interfață grafică
-chrome_options.add_argument("--no-sandbox")
-chrome_options.add_argument("--disable-dev-shm-usage")
-chrome_options.add_argument('--log-level=3')
+def get_logpath() -> str:
+    """Ensure the directory exists and return the log file path."""
+    log_dir = os.path.join(os.getcwd(), 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+    return os.path.join(log_dir, 'selenium.log')
 
-@st.cache_resource
-def get_driver():
-    return webdriver.Chrome(
-        service=Service(
-            ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install()
-        ),
-        options=chrome_options,
+def delete_selenium_log(logpath: str):
+    """Delete the Selenium log file if it exists."""
+    if os.path.exists(logpath):
+        os.remove(logpath)
+
+def get_chromedriver_path() -> str:
+    """Return the path to the chromedriver executable."""
+    return shutil.which('chromedriver')
+
+def get_webdriver_options() -> Options:
+    """Return configured Selenium WebDriver options."""
+    options = Options()
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--disable-features=NetworkService")
+    options.add_argument("--window-size=1920x1080")
+    options.add_argument("--disable-features=VizDisplayCompositor")
+    options.add_argument('--ignore-certificate-errors')
+    options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
+    return options
+
+def get_webdriver_service(logpath) -> Service:
+    """Create and return a Selenium WebDriver service."""
+    service = Service(
+        executable_path=get_chromedriver_path(),
+        log_output=logpath,
     )
+    return service
 
-def search_and_visit_links(url, search_text):
+def validate_and_format_url(url: str) -> str:
+    """Ensure the URL starts with http:// or https://, otherwise prepend https://."""
+    if not url.startswith(("http://", "https://")):
+        return "https://" + url
+    return url
+
+def search_and_visit_links(url: str, search_text, logpath: str) -> Tuple[str, dict, str]:
     # Convertim textul de căutare în cuvinte individuale
     keywords = search_text.lower().split()
 
+    options = get_webdriver_options()
+    service = get_webdriver_service(logpath=logpath)
 
     # Exemplu de utilizare
-    driver = get_driver()
+    driver = webdriver.Chrome(options=options)
     
     results = []  # Pentru stocarea rezultatelor
     links_data = []  # Vom salva aici linkurile pentru a le exporta în Excel
-    
-    try:
-        # Accesăm URL-ul
-        driver.get(url)
-        time.sleep(5)  # Așteptăm ca pagina să se încarce complet
+    with webdriver.Chrome(options=options, service=service) as driver:
+        try:
+            # Accesăm URL-ul
+            driver.get(url)
+            time.sleep(5)  # Așteptăm ca pagina să se încarce complet
 
-        # Căutăm bara de căutare
-        search_box = None
-        possible_search_selectors = [
-            {"by": By.NAME, "value": "q"}, 
-            {"by": By.ID, "value": "search"},
-            {"by": By.CLASS_NAME, "value": "search"},
-            {"by": By.TAG_NAME, "value": "input"}
-        ]
-        
-        for selector in possible_search_selectors:
-            try:
-                search_box = driver.find_element(selector["by"], selector["value"])
-                if search_box:
-                    break
-            except:
-                pass
+            # Căutăm bara de căutare
+            search_box = None
+            possible_search_selectors = [
+                {"by": By.NAME, "value": "q"}, 
+                {"by": By.ID, "value": "search"},
+                {"by": By.CLASS_NAME, "value": "search"},
+                {"by": By.TAG_NAME, "value": "input"}
+            ]
+            
+            for selector in possible_search_selectors:
+                try:
+                    search_box = driver.find_element(selector["by"], selector["value"])
+                    if search_box:
+                        break
+                except:
+                    pass
 
-        if not search_box:
-            results.append("Bara de căutare nu a fost găsită pe acest site.")
-            return results, None
+            if not search_box:
+                results.append("Bara de căutare nu a fost găsită pe acest site.")
+                return results, None
 
-        # Introducem textul în bara de căutare și apăsăm Enter
-        search_box.send_keys(search_text)
-        search_box.send_keys(Keys.RETURN)
-        time.sleep(3)  # Așteptăm să se încarce rezultatele
+            # Introducem textul în bara de căutare și apăsăm Enter
+            search_box.send_keys(search_text)
+            search_box.send_keys(Keys.RETURN)
+            time.sleep(3)  # Așteptăm să se încarce rezultatele
 
-        # Găsim toate linkurile din pagină
-        all_links = driver.find_elements(By.TAG_NAME, "a")
-        filtered_links = []
+            # Găsim toate linkurile din pagină
+            all_links = driver.find_elements(By.TAG_NAME, "a")
+            filtered_links = []
 
-        # Filtrăm linkurile relevante
-        for link_element in all_links:
-            href = link_element.get_attribute("href")
-            if href:
-                # Filtrare pentru olx sau autovit
-                if ("olx" in url or "autovit" in url or "publi24" in url) and ("/d/oferta" in href or "/anunt" in href or "/anunturi" in href) and any(keyword in href.lower() for keyword in keywords) and '.html' in href.lower():
-                    filtered_links.append(href)
-        
-        # Eliminăm linkurile duplicate
-        filtered_links = list(set(filtered_links))
-        
-        results.append(f"Am găsit {len(filtered_links)} linkuri relevante:")
-        results.extend(filtered_links)
-        
-       # Navigăm pe primele 5 linkuri
-        for link in filtered_links[:links_number]:
-            driver.get(link)
-            time.sleep(2)  # Așteptăm să se încarce pagina
+            # Filtrăm linkurile relevante
+            for link_element in all_links:
+                href = link_element.get_attribute("href")
+                if href:
+                    # Filtrare pentru olx sau autovit
+                    if ("olx" in url or "autovit" in url or "publi24" in url) and ("/d/oferta" in href or "/anunt" in href or "/anunturi" in href) and any(keyword in href.lower() for keyword in keywords) and '.html' in href.lower():
+                        filtered_links.append(href)
+            
+            # Eliminăm linkurile duplicate
+            filtered_links = list(set(filtered_links))
+            
+            results.append(f"Am găsit {len(filtered_links)} linkuri relevante:")
+            results.extend(filtered_links)
+            
+            # Navigăm pe primele 5 linkuri
+            for link in filtered_links[:links_number]:
+                driver.get(link)
+                time.sleep(2)  # Așteptăm să se încarce pagina
 
-            # Căutăm primul div care conține "description" în oricare atribut
-            description_div = None
-            try:
-                if "publi24" in url:
-                    description_div = driver.find_element(By.XPATH, "//*[contains(@itemprop, 'description')]")
-                else:
-                    description_div = driver.find_element(By.XPATH, "//*[contains(@*, 'description')]")
-            except:
-                print(f"Nu am găsit un div cu 'description' pentru link-ul {link}")
-                continue
+                # Căutăm primul div care conține "description" în oricare atribut
+                description_div = None
+                try:
+                    if "publi24" in url:
+                        description_div = driver.find_element(By.XPATH, "//*[contains(@itemprop, 'description')]")
+                    else:
+                        description_div = driver.find_element(By.XPATH, "//*[contains(@*, 'description')]")
+                except:
+                    print(f"Nu am găsit un div cu 'description' pentru link-ul {link}")
+                    continue
 
-            # Extragem titlul anunțului (de obicei, titlul este în tag-ul <title>)
-            title = driver.title  # Titlul paginii este adesea titlul anunțului
-            # Sau, dacă există un div sau alt element pentru titlu, putem modifica după caz:
-            # title = driver.find_element(By.XPATH, "xpath_către_titlu").text
+                # Extragem titlul anunțului (de obicei, titlul este în tag-ul <title>)
+                title = driver.title  # Titlul paginii este adesea titlul anunțului
+                # Sau, dacă există un div sau alt element pentru titlu, putem modifica după caz:
+                # title = driver.find_element(By.XPATH, "xpath_către_titlu").text
 
-            # Extragem textul din div-ul care conține "description"
-            description_text = description_div.get_attribute("innerText").strip()
+                # Extragem textul din div-ul care conține "description"
+                description_text = description_div.get_attribute("innerText").strip()
 
-            # În cazul în care mai există div-uri interne care conțin informații suplimentare
-            child_divs = description_div.find_elements(By.XPATH, ".//div")
-            for child_div in child_divs:
-                description_text += " " + child_div.get_attribute("innerText").strip()
+                # În cazul în care mai există div-uri interne care conțin informații suplimentare
+                child_divs = description_div.find_elements(By.XPATH, ".//div")
+                for child_div in child_divs:
+                    description_text += " " + child_div.get_attribute("innerText").strip()
 
 
-            # Salvăm informațiile selectate
-            entry = {}
-            if save_link:
-                entry["Link"] = link
-            if save_title:
-                entry["Titlu"] = title
-            if save_description:
-                entry["Descriere"] = description_text
+                # Salvăm informațiile selectate
+                entry = {}
+                if save_link:
+                    entry["Link"] = link
+                if save_title:
+                    entry["Titlu"] = title
+                if save_description:
+                    entry["Descriere"] = description_text
 
-            links_data.append(entry)
-
-    
-    finally:
-        # Închidem browser-ul
-        driver.quit()
+                links_data.append(entry)
+        finally:
+            # Închidem browser-ul
+            driver.quit()
 
     return results, links_data
 
@@ -178,8 +209,11 @@ save_description = st.checkbox("Salvează descrierea", value=True)
 if st.button("Extrage date"):
     if url and search_text and links_number:
         st.write("Procesăm cererea, vă rugăm să așteptați...")
-        results, links_data = search_and_visit_links(url, search_text)
 
+        logpath = get_logpath()
+        delete_selenium_log(logpath=logpath)
+
+        results, links_data = search_and_visit_links(url, search_text, logpath)
         # Verificăm dacă sunt linkuri disponibile pentru salvare
         if links_data:
             # Salvăm linkurile, titlurile și descrierile în Excel cu wrap text activat

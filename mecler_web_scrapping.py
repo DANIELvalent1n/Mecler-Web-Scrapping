@@ -21,7 +21,7 @@ def search_and_visit_links(url, search_text):
     chrome_options.add_argument('--log-level=3')
 
     # Exemplu de utilizare
-    driver = webdriver.Chrome(executable_path=ChromeDriverManager().install(), options=chrome_options)
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
     
     results = []  # Pentru stocarea rezultatelor
     links_data = []  # Vom salva aici linkurile pentru a le exporta în Excel

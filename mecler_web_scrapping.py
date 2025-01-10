@@ -8,7 +8,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import Alignment 
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-import chromedriver_autoinstaller
+from webdriver_manager.chrome import ChromeDriverManager
 
 def search_and_visit_links(url, search_text):
     # Convertim textul de căutare în cuvinte individuale
@@ -23,7 +23,7 @@ def search_and_visit_links(url, search_text):
     chrome_options.add_argument('--log-level=3')
 
     # Exemplu de utilizare
-    driver = webdriver.Chrome(options=chrome_options)
+    driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
     
     results = []  # Pentru stocarea rezultatelor
     links_data = []  # Vom salva aici linkurile pentru a le exporta în Excel

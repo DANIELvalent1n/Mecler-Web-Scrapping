@@ -1,3 +1,19 @@
+import subprocess
+
+def get_chrome_version():
+    try:
+        result = subprocess.run(['google-chrome', '--version'], capture_output=True, text=True)
+        if result.returncode == 0:
+            return result.stdout.strip()
+        else:
+            return "Google Chrome nu este instalat sau nu este accesibil."
+    except Exception as e:
+        return str(e)
+
+chrome_version = get_chrome_version()
+st.write(f"Versiunea Chrome: {chrome_version}")
+
+
 import streamlit as st
 from selenium import webdriver
 from selenium.webdriver.common.by import By

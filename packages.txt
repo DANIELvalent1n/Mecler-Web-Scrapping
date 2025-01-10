@@ -1,1 +1,2 @@
-firefox-esr
+selenium
+chromedriver-autoinstaller

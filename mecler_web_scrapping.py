@@ -1,35 +1,29 @@
 import streamlit as st
-import os, sys
-def installff():
-    os.system('ln -s /home/appuser/venv/lib/python3.7/site-packages/seleniumbase/drivers/geckodriver /home/appuser/venv/bin/geckodriver')
-
-_ = installff()
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 import time
 import pandas as pd
 from openpyxl import load_workbook
-from openpyxl.styles import Alignment
-from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.firefox.service import Service
+from openpyxl.styles import Alignment 
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+import chromedriver_autoinstaller
 
 def search_and_visit_links(url, search_text):
     # Convertim textul de căutare în cuvinte individuale
     keywords = search_text.lower().split()
 
-    # Configurăm Firefox
-    firefox_options = Options()
-    firefox_options.add_argument("--headless")  # Rulare fără interfață grafică
-    firefox_options.add_argument("--no-sandbox")
-    firefox_options.add_argument("--disable-dev-shm-usage")
-    firefox_options.add_argument('--log-level=3')
+    chromedriver_autoinstaller.install()
 
-    # Specificăm locația geckodriver-ului (opțional, dacă nu este în PATH)
-    gecko_service = Service(executable_path="./geckodriver")  # Asigură-te că `geckodriver` este în PATH
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")  # Rulare fără interfață grafică
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument('--log-level=3')
 
     # Exemplu de utilizare
-    driver = webdriver.Firefox(service=gecko_service, options=firefox_options)
+    driver = webdriver.Chrome(options=chrome_options)
     
     results = []  # Pentru stocarea rezultatelor
     links_data = []  # Vom salva aici linkurile pentru a le exporta în Excel
@@ -83,7 +77,7 @@ def search_and_visit_links(url, search_text):
         results.append(f"Am găsit {len(filtered_links)} linkuri relevante:")
         results.extend(filtered_links)
         
-        # Navigăm pe primele 5 linkuri
+       # Navigăm pe primele 5 linkuri
         for link in filtered_links[:links_number]:
             driver.get(link)
             time.sleep(2)  # Așteptăm să se încarce pagina
@@ -101,6 +95,8 @@ def search_and_visit_links(url, search_text):
 
             # Extragem titlul anunțului (de obicei, titlul este în tag-ul <title>)
             title = driver.title  # Titlul paginii este adesea titlul anunțului
+            # Sau, dacă există un div sau alt element pentru titlu, putem modifica după caz:
+            # title = driver.find_element(By.XPATH, "xpath_către_titlu").text
 
             # Extragem textul din div-ul care conține "description"
             description_text = description_div.get_attribute("innerText").strip()
@@ -109,6 +105,7 @@ def search_and_visit_links(url, search_text):
             child_divs = description_div.find_elements(By.XPATH, ".//div")
             for child_div in child_divs:
                 description_text += " " + child_div.get_attribute("innerText").strip()
+
 
             # Salvăm informațiile selectate
             entry = {}
@@ -121,6 +118,7 @@ def search_and_visit_links(url, search_text):
 
             links_data.append(entry)
 
+    
     finally:
         # Închidem browser-ul
         driver.quit()

@@ -1,3 +1,5 @@
+import streamlit as st
+
 import subprocess
 
 def get_chrome_version():
@@ -13,8 +15,6 @@ def get_chrome_version():
 chrome_version = get_chrome_version()
 st.write(f"Versiunea Chrome: {chrome_version}")
 
-
-import streamlit as st
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys

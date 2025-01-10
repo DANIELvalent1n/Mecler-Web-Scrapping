@@ -1,25 +1,4 @@
 import streamlit as st
-
-import subprocess
-
-def get_chrome_package_info():
-    try:
-        result = subprocess.run(
-            ['powershell', '-Command', 'Get-Package -Name "Google Chrome"'],
-            capture_output=True,
-            text=True
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-        else:
-            return "Google Chrome package not found."
-    except Exception as e:
-        return str(e)
-
-chrome_info = get_chrome_package_info()
-st.write(f"Chrome package info: {chrome_info}")
-
-
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -30,19 +9,30 @@ from openpyxl.styles import Alignment
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.core.os_manager import ChromeType
+
+chrome_options = Options()
+chrome_options.add_argument("--headless")  # Rulare fără interfață grafică
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--disable-dev-shm-usage")
+chrome_options.add_argument('--log-level=3')
+
+@st.cache_resource
+def get_driver():
+    return webdriver.Chrome(
+        service=Service(
+            ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install()
+        ),
+        options=chrome_options,
+    )
 
 def search_and_visit_links(url, search_text):
     # Convertim textul de căutare în cuvinte individuale
     keywords = search_text.lower().split()
 
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")  # Rulare fără interfață grafică
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument('--log-level=3')
 
     # Exemplu de utilizare
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+    driver = get_driver()
     
     results = []  # Pentru stocarea rezultatelor
     links_data = []  # Vom salva aici linkurile pentru a le exporta în Excel

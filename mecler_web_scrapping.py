@@ -10,7 +10,8 @@ import subprocess
 from typing import List, Tuple
 import pandas as pd
 from openpyxl import load_workbook
-from openpyxl.styles import Alignment 
+from openpyxl.styles import Alignment
+from openpyxl.utils import get_column_letter 
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 
@@ -137,17 +138,9 @@ def search_and_visit_links(url: str, search_text, logpath: str) -> Tuple[str, di
 
                 # Extragem titlul anunțului (de obicei, titlul este în tag-ul <title>)
                 title = driver.title  # Titlul paginii este adesea titlul anunțului
-                # Sau, dacă există un div sau alt element pentru titlu, putem modifica după caz:
-                # title = driver.find_element(By.XPATH, "xpath_către_titlu").text
 
                 # Extragem textul din div-ul care conține "description"
                 description_text = description_div.get_attribute("innerText").strip()
-
-                # În cazul în care mai există div-uri interne care conțin informații suplimentare
-                child_divs = description_div.find_elements(By.XPATH, ".//div")
-                for child_div in child_divs:
-                    description_text += " " + child_div.get_attribute("innerText").strip()
-
 
                 # Salvăm informațiile selectate
                 entry = {}
@@ -177,7 +170,16 @@ def save_to_excel_with_wrap(links_data):
     wb = load_workbook(excel_file)
     ws = wb.active
 
-    # Aplicăm wrap text pentru toate celulele care conțin date
+    # Calculăm lățimea pentru fiecare coloană
+    num_columns = 3  # Numărul total de coloane (Titlu, Descriere, etc.)
+    column_width = (0.9 * 100) / num_columns  # Distribuim egal
+
+    # Setăm lățimea pentru fiecare coloană
+    for col_idx in range(1, 4):  # Coloanele 2 și 3
+        col_letter = get_column_letter(col_idx)  # Obținem litera coloanei (ex: A, B, etc.)
+        ws.column_dimensions[col_letter].width = column_width
+
+    # Aplicăm wrap text pentru celule
     for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=2, max_col=3):  # Col 2 este pentru "Titlu" și Col 3 pentru "Descriere"
         for cell in row:
             cell.alignment = Alignment(wrap_text=True)
@@ -191,9 +193,9 @@ def save_to_excel_with_wrap(links_data):
 st.title("Căutare avansată pe site-uri cu Mecler Web Scraper")
 
 # Introducerea URL-ului și a textului de căutare
-url = st.text_input("Introduceți URL-ul site-ului:")
-search_text = st.text_input("Introduceți textul pentru căutare:")
-links_number = st.text_input("Introduceți numarul de anunturi dorit pentru analizare:")
+url = st.text_input("Introduceți URL-ul site-ului:", placeholder="Ex: https://www.olx.ro/")
+search_text = st.text_input("Introduceți textul pentru căutare:", placeholder="Ex: Nissan Qashqai 2010")
+links_number = st.text_input("Introduceți numarul de anunturi dorit pentru analizare:", placeholder="Ex: 14")
 
 # Verificăm dacă valoarea introdusă este un număr valid
 if links_number.isdigit():
@@ -207,27 +209,27 @@ save_description = st.checkbox("Salvează descrierea", value=True)
 
 # Buton pentru inițierea căutării
 if st.button("Extrage date"):
-    if url and search_text and links_number:
-        st.write("Procesăm cererea, vă rugăm să așteptați...")
+    with st.spinner("Procesăm cererea, vă rugăm să așteptați..."):
+        if url and search_text and links_number:
 
-        logpath = get_logpath()
-        delete_selenium_log(logpath=logpath)
+            logpath = get_logpath()
+            delete_selenium_log(logpath=logpath)
+            
+            results, links_data = search_and_visit_links(url, search_text, logpath)
+            # Verificăm dacă sunt linkuri disponibile pentru salvare
+            if links_data:
+                # Salvăm linkurile, titlurile și descrierile în Excel cu wrap text activat
+                excel_file = save_to_excel_with_wrap(links_data)
 
-        results, links_data = search_and_visit_links(url, search_text, logpath)
-        # Verificăm dacă sunt linkuri disponibile pentru salvare
-        if links_data:
-            # Salvăm linkurile, titlurile și descrierile în Excel cu wrap text activat
-            excel_file = save_to_excel_with_wrap(links_data)
-
-            # Oferim fișierul pentru descărcare
-            with open(excel_file, "rb") as file:
-                st.download_button(
-                    label="Descarcă rezultatele în Excel",
-                    data=file,
-                    file_name=excel_file,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                )
+                # Oferim fișierul pentru descărcare
+                with open(excel_file, "rb") as file:
+                    st.download_button(
+                        label="Descarcă rezultatele în Excel",
+                        data=file,
+                        file_name=excel_file,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    )
+            else:
+                st.write("Nu au fost găsite descriere relevante.")
         else:
-            st.write("Nu au fost găsite descriere relevante.")
-    else:
-        st.error("Vă rugăm să completați atât URL-ul, textul, cat si numarul pentru căutare.")
+            st.error("Vă rugăm să completați atât URL-ul, textul, cat si numarul pentru căutare.")

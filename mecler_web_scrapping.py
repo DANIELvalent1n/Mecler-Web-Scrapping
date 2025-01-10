@@ -14,8 +14,6 @@ def search_and_visit_links(url, search_text):
     # Convertim textul de căutare în cuvinte individuale
     keywords = search_text.lower().split()
 
-    chromedriver_autoinstaller.install()
-
     chrome_options = Options()
     chrome_options.add_argument("--headless")  # Rulare fără interfață grafică
     chrome_options.add_argument("--no-sandbox")

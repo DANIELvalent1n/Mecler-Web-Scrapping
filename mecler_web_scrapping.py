@@ -15,17 +15,6 @@ from openpyxl.utils import get_column_letter
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 
-def get_logpath() -> str:
-    """Ensure the directory exists and return the log file path."""
-    log_dir = os.path.join(os.getcwd(), 'logs')
-    os.makedirs(log_dir, exist_ok=True)
-    return os.path.join(log_dir, 'selenium.log')
-
-def delete_selenium_log(logpath: str):
-    """Delete the Selenium log file if it exists."""
-    if os.path.exists(logpath):
-        os.remove(logpath)
-
 def get_chromedriver_path() -> str:
     """Return the path to the chromedriver executable."""
     return shutil.which('chromedriver')
@@ -44,11 +33,10 @@ def get_webdriver_options() -> Options:
     options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
     return options
 
-def get_webdriver_service(logpath) -> Service:
+def get_webdriver_service() -> Service:
     """Create and return a Selenium WebDriver service."""
     service = Service(
-        executable_path=get_chromedriver_path(),
-        log_output=logpath,
+        executable_path=get_chromedriver_path()
     )
     return service
 
@@ -58,12 +46,12 @@ def validate_and_format_url(url: str) -> str:
         return "https://" + url
     return url
 
-def search_and_visit_links(url: str, search_text, logpath: str) -> Tuple[str, dict, str]:
+def search_and_visit_links(url: str, search_text) -> Tuple[str, dict, str]:
     # Convertim textul de căutare în cuvinte individuale
     keywords = search_text.lower().split()
 
     options = get_webdriver_options()
-    service = get_webdriver_service(logpath=logpath)
+    service = get_webdriver_service()
 
     # Exemplu de utilizare
     driver = webdriver.Chrome(options=options)
@@ -211,11 +199,8 @@ save_description = st.checkbox("Salvează descrierea", value=True)
 if st.button("Extrage date"):
     with st.spinner("Procesăm cererea, vă rugăm să așteptați..."):
         if url and search_text and links_number:
-
-            logpath = get_logpath()
-            delete_selenium_log(logpath=logpath)
             
-            results, links_data = search_and_visit_links(url, search_text, logpath)
+            results, links_data = search_and_visit_links(url, search_text)
             # Verificăm dacă sunt linkuri disponibile pentru salvare
             if links_data:
                 # Salvăm linkurile, titlurile și descrierile în Excel cu wrap text activat
